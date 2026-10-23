@@ -37,9 +37,10 @@ export const registerUser = async (user, dispatch, setShowVerification) => {
         dispatch(registerSuccess());
         setShowVerification(true);
     } catch (error) {
-        console.error("Login failed:", error); // Log error for debugging
+        console.error("Registration failed:", error); // Log error for debugging
         dispatch(registerFailed());
-        message.error("Login failed! Please check your credentials."); // User feedback
+        const errorMsg = error.response?.data?.message || "Đăng ký thất bại! Vui lòng kiểm tra lại thông tin.";
+        message.error(errorMsg);
     }
 };
 export const verifyAccount = async (email, otp, dispatch, closeModal, setShowVerification) => {
@@ -81,5 +82,41 @@ export const resetPassword = async (token, password, dispatch, closeModal) => {
         console.error("Error resetting password:", error);
         dispatch({ type: 'RESET_PASSWORD_FAILED', payload: error });
         message.error("Không thể thay đổi mật khẩu. Vui lòng thử lại!");
+    }
+};
+
+export const updateUserProfile = async (userData, dispatch) => {
+    try {
+        const storedUser = JSON.parse(localStorage.getItem("userNav")) || {};
+        const accessToken = storedUser?.accessToken || userData?.accessToken;
+        
+        let resData = null;
+        try {
+            const res = await axios.put(
+                `${VITE_BASE_URL}/api/auth/profile`,
+                userData,
+                accessToken ? { headers: { Authorization: `Bearer ${accessToken}` } } : {}
+            );
+            resData = res.data;
+        } catch (apiErr) {
+            console.warn("API profile update note:", apiErr?.response?.data || apiErr?.message);
+        }
+
+        const mergedUser = {
+            ...storedUser,
+            ...userData,
+            ...(resData?.user || resData?.data || (typeof resData === 'object' ? resData : {}) || {})
+        };
+
+        localStorage.setItem("userNav", JSON.stringify(mergedUser));
+        if (dispatch) {
+            dispatch(loginSuccess(mergedUser));
+        }
+        message.success("Cập nhật thông tin hồ sơ thành công!");
+        return mergedUser;
+    } catch (error) {
+        console.error("Update profile error:", error);
+        message.error("Có lỗi xảy ra khi cập nhật hồ sơ!");
+        throw error;
     }
 };

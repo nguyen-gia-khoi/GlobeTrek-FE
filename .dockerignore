@@ -1,0 +1,12 @@
+node_modules
+dist
+dist-ssr
+.git
+.idea
+.vscode
+*.md
+.env
+.env.*
+!.env.production.example
+npm-debug.log*
+src/assets/*.original.png

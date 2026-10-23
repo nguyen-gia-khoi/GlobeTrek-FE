@@ -19,14 +19,11 @@ function Laptop() {
     if (storedUser) {
       try {
         const userData = JSON.parse(storedUser);
-        console.log('Parsed User Data from userNav:', userData);
         setUser(userData);
         setToken(userData.token);
       } catch (error) {
         console.error('Error parsing user data from localStorage:', error);
       }
-    } else {
-      console.log('No userNav data found in localStorage');
     }
   }, []);
 
@@ -58,13 +55,37 @@ function Laptop() {
               {/* <Register/> */}
             </div>
           </div>
-          <div className="flex space-x-4 mt-2">
-            <a className="cursor-pointer hover:bg-slate-100 text-slate-500 font-bold py-2 px-2 rounded">Khách sạn</a>
-            <a className="cursor-pointer hover:bg-slate-100 text-slate-500 font-bold py-2 px-2 rounded">Vé máy bay</a>
-            <a className="cursor-pointer hover:bg-slate-100 text-slate-500 font-bold py-2 px-2 rounded">Vé xe khách</a>
-            <a className="cursor-pointer hover:bg-slate-100 text-slate-500 font-bold py-2 px-2 rounded">Đưa đón sân bay</a>
-            <a className="cursor-pointer hover:bg-slate-100 text-slate-500 font-bold py-2 px-2 rounded">Cho thuê xe</a>
-            <a className="cursor-pointer hover:bg-slate-100 text-slate-500 font-bold py-2 px-2 rounded">Hoạt động & Vui chơi</a>
+          <div className="flex items-center space-x-1 mt-1 pb-1.5 border-t border-slate-100 pt-1 text-sm">
+            <Link
+              to="/product-body"
+              className="cursor-pointer hover:bg-emerald-50 text-slate-700 hover:text-[#4CA771] font-bold py-1.5 px-3 rounded-lg transition-colors"
+            >
+              Tất cả Tour
+            </Link>
+            <Link
+              to="/product-body?scope=domestic"
+              className="cursor-pointer hover:bg-emerald-50 text-slate-700 hover:text-[#4CA771] font-bold py-1.5 px-3 rounded-lg transition-colors"
+            >
+              Tour Trong Nước
+            </Link>
+            <Link
+              to="/product-body?scope=international"
+              className="cursor-pointer hover:bg-emerald-50 text-slate-700 hover:text-[#4CA771] font-bold py-1.5 px-3 rounded-lg transition-colors"
+            >
+              Tour Quốc Tế
+            </Link>
+            <Link
+              to="/product-body"
+              className="cursor-pointer hover:bg-emerald-50 text-slate-700 hover:text-[#4CA771] font-bold py-1.5 px-3 rounded-lg transition-colors"
+            >
+              Tour Bán Chạy
+            </Link>
+            <Link
+              to="/product-body"
+              className="cursor-pointer hover:bg-emerald-50 text-slate-700 hover:text-[#4CA771] font-bold py-1.5 px-3 rounded-lg transition-colors"
+            >
+              Ưu Đãi Hot
+            </Link>
             <More />
           </div>
         </div>

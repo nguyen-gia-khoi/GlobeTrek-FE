@@ -1,25 +1,18 @@
-import React from 'react'
-import Header from '../header1/Header.jsx'
-import TourBooking from './TourBooking.jsx'
-import Footer from '../footer/Footer.jsx'
+import React from 'react';
+import Header from '../header1/Header.jsx';
+import TourBooking from './TourBooking.jsx';
+import Footer from '../footer/Footer.jsx';
 
 function BodyPay() {
   return (
-    <div>
+    <div className="bg-[#f8fafc] min-h-screen flex flex-col justify-between">
       <Header />
-      <div className='max-w-[1280px] mt-20 mx-auto '>
-        <div >
-          <TourBooking />
-        </div>
-        <div className='max-sm:hidden'>
-        </div>
-
-      </div>
-      <div className='max-sm:hidden'>
-        <Footer />
-      </div>
+      <main className="pt-28 pb-16">
+        <TourBooking />
+      </main>
+      <Footer />
     </div>
-  )
+  );
 }
 
-export default BodyPay
+export default BodyPay;

@@ -6,6 +6,7 @@ import { Card, Typography, Pagination, Button, message } from 'antd';
 import SidebarMenu from './SidebarMenu';
 import Header from '../header1/Header';
 import Footer from '../footer/Footer';
+import TicketDetailModal from './TicketDetailModal';
 
 const { Title, Text } = Typography;
 const BASE_URL = import.meta.env.VITE_BASE_URL;
@@ -15,8 +16,15 @@ const SetPlace = ({ setSelectedSection }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(2);
   const [paypalToken, setPaypalToken] = useState(null); // State để lưu token từ URL
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+
+  const handleOpenDetail = (orderId) => {
+    setSelectedOrderId(orderId);
+    setIsDetailModalOpen(true);
+  };
 
   // Xử lý redirect từ PayPal và lưu token
   useEffect(() => {
@@ -34,8 +42,12 @@ const SetPlace = ({ setSelectedSection }) => {
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const user = JSON.parse(localStorage.getItem('userNav'));
-        const accessToken = user?.accessToken;
+        const user = JSON.parse(localStorage.getItem('userNav')) || {};
+        const accessToken =
+          user?.accessToken ||
+          user?.token?.accessToken ||
+          user?.token ||
+          user?.accesstoken;
 
         if (!accessToken) {
           throw new Error("Access token not found");
@@ -53,25 +65,43 @@ const SetPlace = ({ setSelectedSection }) => {
         }
 
         const data = await response.json();
-        filterRecentOrders(data);
+        parseAndSetOrders(data);
       } catch (error) {
         console.error('Error fetching orders:', error);
         message.error('Không thể tải dữ liệu đơn hàng');
       }
     };
 
-    const filterRecentOrders = (orders) => {
-      const today = new Date();
-      const sevenDaysAgo = new Date(today);
-      sevenDaysAgo.setDate(today.getDate() - 7);
+    const parseAndSetOrders = (data) => {
+      if (!data) {
+        setTodayOrders([]);
+        return;
+      }
+      let list = [];
+      if (Array.isArray(data)) {
+        list = data;
+      } else if (Array.isArray(data.orders)) {
+        list = data.orders;
+      } else if (Array.isArray(data.data)) {
+        list = data.data;
+      } else if (typeof data === 'object') {
+        Object.values(data).forEach((val) => {
+          if (Array.isArray(val)) {
+            list = list.concat(val);
+          } else if (val && typeof val === 'object' && (val._id || val.tour || val.bookingDate)) {
+            list.push(val);
+          }
+        });
+      }
 
-      const filteredOrders = Object.values(orders).flat().filter((order) => {
-        const createdAtDate = new Date(order.createdAt);
-        return createdAtDate >= sevenDaysAgo && createdAtDate <= today;
+      // Sắp xếp đơn hàng mới nhất lên đầu
+      list.sort((a, b) => {
+        const dateA = new Date(a.createdAt || a.bookingDate || 0);
+        const dateB = new Date(b.createdAt || b.bookingDate || 0);
+        return dateB - dateA;
       });
 
-      filteredOrders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-      setTodayOrders(filteredOrders);
+      setTodayOrders(list);
     };
 
     fetchOrders();
@@ -80,8 +110,12 @@ const SetPlace = ({ setSelectedSection }) => {
   // Hàm xác nhận thanh toán PayPal
   const capturePaypalPayment = async (orderId) => {
     try {
-      const user = JSON.parse(localStorage.getItem('userNav'));
-      const accessToken = user?.accessToken;
+      const user = JSON.parse(localStorage.getItem('userNav')) || {};
+      const accessToken =
+        user?.accessToken ||
+        user?.token?.accessToken ||
+        user?.token ||
+        user?.accesstoken;
 
       if (!accessToken) {
         throw new Error("Access token not found");
@@ -129,8 +163,12 @@ const SetPlace = ({ setSelectedSection }) => {
 
   const cancelOrder = async (orderId) => {
     try {
-      const user = JSON.parse(localStorage.getItem('userNav'));
-      const accessToken = user?.accessToken;
+      const user = JSON.parse(localStorage.getItem('userNav')) || {};
+      const accessToken =
+        user?.accessToken ||
+        user?.token?.accessToken ||
+        user?.token ||
+        user?.accesstoken;
 
       const response = await fetch(`${BASE_URL}/orders/api/cancel`, {
         method: 'POST',
@@ -159,8 +197,12 @@ const SetPlace = ({ setSelectedSection }) => {
 
   const refundOrder = async (orderID) => {
     try {
-      const user = JSON.parse(localStorage.getItem('userNav'));
-      const accessToken = user?.accessToken;
+      const user = JSON.parse(localStorage.getItem('userNav')) || {};
+      const accessToken =
+        user?.accessToken ||
+        user?.token?.accessToken ||
+        user?.token ||
+        user?.accesstoken;
 
       const response = await fetch(`${BASE_URL}/orders/api/refund`, {
         method: 'POST',
@@ -210,9 +252,24 @@ const SetPlace = ({ setSelectedSection }) => {
   const canRefundTour = (status, bookingDate) => {
     if (status !== 'paid') return false;
     const today = new Date();
-    const booking = new Date(bookingDate);
+    const dateVal = Array.isArray(bookingDate) ? bookingDate[0] : bookingDate;
+    const booking = new Date(dateVal);
+    if (isNaN(booking.getTime())) return false;
     const diffDays = Math.ceil((booking - today) / (1000 * 60 * 60 * 24));
     return diffDays >= 2;
+  };
+
+  const formatBookingDate = (dateVal, createdAt) => {
+    const target = dateVal || createdAt;
+    if (!target) return 'N/A';
+    if (Array.isArray(target)) {
+      return target.map(d => {
+        const parsed = new Date(d);
+        return isNaN(parsed.getTime()) ? String(d) : parsed.toLocaleDateString('vi-VN');
+      }).join(', ');
+    }
+    const d = new Date(target);
+    return isNaN(d.getTime()) ? String(target) : d.toLocaleDateString('vi-VN');
   };
 
   return (
@@ -222,21 +279,13 @@ const SetPlace = ({ setSelectedSection }) => {
         <div className="flex max-w-[1280px] justify-center mx-auto flex-row items-start pb-10">
           <SidebarMenu setSelectedSection={setSelectedSection} />
           <div className="w-full max-w-5xl ml-5 mx-auto rounded-lg">
-            <h1 className="sm:text-2xl text-sm font-bold mb-4 text-gray-800">Traveloka Easy Reschedule</h1>
-
-            <div className="bg-green-600 text-white flex justify-between p-4 rounded-xl mb-4 shadow-lg">
-              <h1 className="text-2xl font-bold">Traveloka Easy Reschedule</h1>
-              <div>
-                <p className="text-white font-bold">Đổi lịch dễ như trở bàn tay.</p>
-                <p className="text-white font-bold">Tìm hiểu thêm</p>
-              </div>
-            </div>
-
             <div className="mb-4">
               <h3 className="text-xl font-semibold text-gray-700">Vé điện tử & phiếu thanh toán hiện hành</h3>
               <div className="bg-white shadow-lg rounded-xl p-4 mt-2">
                 {displayOrders.length === 0 ? (
-                  <Text className="text-center text-gray-500">Không có đơn hàng nào.</Text>
+                  <div className="py-8 text-center">
+                    <Text className="text-gray-500 block">Không có đơn hàng nào.</Text>
+                  </div>
                 ) : (
                   <div>
                     {displayOrders.map((order) => (
@@ -245,60 +294,69 @@ const SetPlace = ({ setSelectedSection }) => {
                         className="mb-4 shadow-md hover:shadow-lg transition duration-300"
                         style={{ borderRadius: '12px', backgroundColor: '#f9fafb' }}
                       >
-                        <Title level={4} className="text-gray-800">Mã đặt chỗ: {order._id}</Title>
-                        <Text>Ngày đặt: {new Date(order.bookingDate).toLocaleDateString()}</Text>
-                        <Text className="text-gray-600 block mt-2">Mô tả Tour: {order.tour?.description}</Text>
+                        <div className="border-b border-gray-200 pb-2 mb-3">
+                          <Title level={4} className="text-gray-800 m-0">Mã đặt chỗ: {order._id}</Title>
+                        </div>
+                        <Text>Ngày đặt / Khởi hành: {formatBookingDate(order.bookingDate, order.createdAt)}</Text>
+                        <Text className="text-gray-600 block mt-2">
+                          Mô tả Tour: {order.tour?.description || order.tour?.name || order.tour?.title || order.tourTitle || 'Vé tour du lịch'}
+                        </Text>
                         <Text className="block mt-2">
-                          Số lượng vé: {order.adultCount + order.childCount || 0}
+                          Số lượng vé: {(order.adultCount || 0) + (order.childCount || 0) || order.ticketCount || 1}
                         </Text>
                         <Text className="text-lg font-bold block mt-2 text-green-600">
-                          Tổng giá trị: {order.totalValue.toLocaleString()} VND
+                          Tổng giá trị: {(order.totalValue || order.totalPrice || order.total || 0).toLocaleString()} VND
                         </Text>
                         <Text
                           className="text-lg font-bold block mt-2"
                           style={{ color: getStatusColor(order.status) }}
                         >
-                          Trạng thái: {order.status === 'canceled' ? 'Đã hủy' : order.status}
+                          Trạng thái: {order.status === 'canceled' ? 'Đã hủy' : order.status === 'paid' ? 'Đã thanh toán' : order.status === 'pending' ? 'Đang chờ xử lý' : order.status}
                         </Text>
 
-                        {/* Hiển thị nút "Thanh toán bằng PayPal" nếu có token và trạng thái phù hợp */}
-                        {(order.status === 'pending' || order.status === 'processing') &&
-                          order.paymentMethod === 'paypal' && paypalToken && (
+                        <div className="flex flex-wrap items-center gap-2 mt-4">
+                          <Button
+                            type="primary"
+                            size="middle"
+                            className="bg-[#4CA771] hover:bg-[#00875A]"
+                            onClick={() => handleOpenDetail(order._id)}
+                          >
+                            Xem chi tiết vé
+                          </Button>
+
+                          {/* Hiển thị nút "Thanh toán bằng PayPal" nếu có token và trạng thái phù hợp */}
+                          {(order.status === 'pending' || order.status === 'processing') &&
+                            order.paymentMethod === 'paypal' && paypalToken && (
+                              <Button
+                                type="primary"
+                                size="middle"
+                                onClick={() => capturePaypalPayment(order._id)}
+                              >
+                                Xác nhận thanh toán PayPal
+                              </Button>
+                            )}
+
+                          {canCancelTour(order.status) && (
                             <Button
-                              type="primary"
+                              type="default"
+                              danger
                               size="middle"
-                              className="max-w-xs mt-4"
-                              block
-                              onClick={() => capturePaypalPayment(order._id)}
+                              onClick={() => cancelOrder(order._id)}
                             >
-                              Xác nhận thanh toán PayPal
+                              Hủy Đơn Hàng
                             </Button>
                           )}
 
-                        {canCancelTour(order.status) && (
-                          <Button
-                            type="default"
-                            danger
-                            size="middle"
-                            className="max-w-xs mt-4"
-                            block
-                            onClick={() => cancelOrder(order._id)}
-                          >
-                            Hủy Đơn Hàng
-                          </Button>
-                        )}
-
-                        {canRefundTour(order.status, order.bookingDate) && (
-                          <Button
-                            type="default"
-                            size="middle"
-                            className="max-w-xs mt-4"
-                            block
-                            onClick={() => refundOrder(order._id)}
-                          >
-                            Hoàn Tiền
-                          </Button>
-                        )}
+                          {canRefundTour(order.status, order.bookingDate) && (
+                            <Button
+                              type="default"
+                              size="middle"
+                              onClick={() => refundOrder(order._id)}
+                            >
+                              Hoàn Tiền
+                            </Button>
+                          )}
+                        </div>
                       </Card>
                     ))}
                   </div>
@@ -315,6 +373,11 @@ const SetPlace = ({ setSelectedSection }) => {
           </div>
         </div>
       </div>
+      <TicketDetailModal
+        orderId={selectedOrderId}
+        isOpen={isDetailModalOpen}
+        onClose={() => setIsDetailModalOpen(false)}
+      />
       <Footer />
     </>
   );

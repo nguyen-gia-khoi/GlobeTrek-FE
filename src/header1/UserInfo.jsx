@@ -109,7 +109,7 @@ const UserInfo = () => {
             <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md z-10 relative transition-transform transform">
               <h2 className="text-2xl font-bold mb-3">Đang đăng xuất</h2>
               <p className="mb-4">
-                Ôi không! Bạn sẽ bỏ lỡ rất nhiều điều khi đăng nhập: Điểm thưởng Traveloka, Passenger Quick Pick, Thông báo giá vé, và những quyền lợi khác chỉ dành cho thành viên. Bạn có chắc vẫn muốn đăng xuất?
+                Ôi không! Bạn sẽ bỏ lỡ rất nhiều quyền lợi khi đăng nhập: Ưu đãi độc quyền GlobeTrek, Lưu hành trình yêu thích, và những tiện ích chỉ dành riêng cho thành viên. Bạn có chắc vẫn muốn đăng xuất?
               </p>
               <div className="flex justify-end">
                 <button

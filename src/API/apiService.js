@@ -15,13 +15,16 @@ export const fetchTours = async (tourTypeId) => {
 
     // Lọc theo tourTypeId nếu có và xử lý availabilities
     const tours = tourTypeId
-      ? data.filter(tour => tour.tourType._id === tourTypeId)
+      ? data.filter(tour => {
+          const id = tour.tourType?._id || tour.tourType;
+          return id === tourTypeId;
+        })
       : data;
 
     return tours.map(tour => ({
       ...tour,
       availabilities: (tour.availabilities || []).map(item => ({
-        date: new Date(item.date).toLocaleDateString(),
+        date: item.date ? new Date(item.date).toLocaleDateString() : '',
         availableSeats: item.availableSeats
       }))
     }));
@@ -33,6 +36,21 @@ export const fetchTours = async (tourTypeId) => {
 
 
 
+export const getAuthToken = () => {
+  try {
+    const user = JSON.parse(localStorage.getItem('userNav')) || {};
+    return (
+      user.accessToken ||
+      user?.token?.accessToken ||
+      user?.token ||
+      user?.accesstoken ||
+      null
+    );
+  } catch (e) {
+    return null;
+  }
+};
+
 export const fetchTourById = async (id) => {
   try {
     const response = await fetch(`${TOUR_API_URL}/tours/api/${id}`);
@@ -42,12 +60,14 @@ export const fetchTourById = async (id) => {
 
     const data = await response.json();
 
-    // Kiểm tra và lấy availability từ dữ liệu trả về
+    // Kiểm tra và lấy availability từ dữ liệu trả về, giữ lại _id và date gốc
     const availabilities = data.availabilities || [];
     return {
       ...data,
       availabilities: availabilities.map(item => ({
-        date: new Date(item.date).toLocaleDateString(), // Định dạng lại ngày
+        _id: item._id,
+        date: new Date(item.date).toLocaleDateString(),
+        rawDate: item.date,
         availableSeats: item.availableSeats
       }))
     };
@@ -57,6 +77,53 @@ export const fetchTourById = async (id) => {
   }
 };
 
+export const quotePromotion = async ({
+  tourId,
+  departureId,
+  bookingDate,
+  adultCount,
+  childCount,
+  adultPrice,
+  childPrice,
+  code,
+  token,
+}) => {
+  const currentToken = token || getAuthToken();
+  if (!currentToken) {
+    throw new Error('Vui lòng đăng nhập để áp dụng ưu đãi.');
+  }
+
+  const payload = {
+    tourId,
+    adultCount: Math.max(0, Number(adultCount) || 0),
+    childCount: Math.max(0, Number(childCount) || 0),
+    ...(departureId ? { departureId } : {}),
+    ...(bookingDate ? { bookingDate } : {}),
+    ...(adultPrice !== undefined && adultPrice !== null ? { adultPrice: Number(adultPrice) } : {}),
+    ...(childPrice !== undefined && childPrice !== null ? { childPrice: Number(childPrice) } : {}),
+    ...(code ? { code: String(code).trim().toUpperCase() } : {}),
+  };
+
+  const response = await fetch(`${BASE_URL}/api/promotions/quote`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${currentToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(data.message || 'Mã ưu đãi không hợp lệ');
+    error.status = response.status;
+    error.data = data;
+    throw error;
+  }
+
+  return data;
+};
+
 
 export const fetchTourTypes = async () => {
   try {
@@ -64,20 +131,72 @@ export const fetchTourTypes = async () => {
     if (!response.ok) {
       throw new Error('Không thể lấy danh sách loại tour');
     }
-    return await response.json();
+    const data = await response.json();
+    return data.tourTypes || (Array.isArray(data) ? data : []);
   } catch (error) {
     console.error('Error fetching tour types:', error);
     throw error;
   }
 };
 
-export const searchTours = async (query) => {
+export const fetchDestinations = async (params = {}) => {
   try {
-    const response = await fetch(`${TOUR_API_URL}/search?query=${query}`);
+    const query = new URLSearchParams(params).toString();
+    const url = query ? `${TOUR_API_URL}/destinations/api?${query}` : `${TOUR_API_URL}/destinations/api`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error('Không thể lấy danh sách điểm đến');
+    }
+    const data = await response.json();
+    return Array.isArray(data) ? data : (data.destinations || []);
+  } catch (error) {
+    console.error('Lỗi khi lấy danh sách điểm đến:', error);
+    throw error;
+  }
+};
+
+export const searchTours = async (params = {}) => {
+  try {
+    // Hỗ trợ cả trường hợp truyền query string đơn thuần hoặc object params
+    const queryParams = new URLSearchParams();
+
+    if (typeof params === 'string') {
+      if (params.trim()) queryParams.append('query', params.trim());
+    } else if (typeof params === 'object' && params !== null) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '' && value !== 'all') {
+          queryParams.append(key, value);
+        }
+      });
+    }
+
+    const queryString = queryParams.toString();
+    const url = `${BASE_URL}/tours/search${queryString ? `?${queryString}` : ''}`;
+
+    const response = await fetch(url);
     if (!response.ok) {
       throw new Error('Không thể tìm kiếm tour');
     }
-    return await response.json();
+    const data = await response.json();
+
+    // Chuẩn hóa kết quả trả về
+    if (Array.isArray(data)) {
+      return {
+        data: data,
+        total: data.length,
+        totalPages: 1,
+        page: 1,
+        limit: data.length,
+      };
+    }
+
+    return {
+      data: data.data || [],
+      total: data.total || 0,
+      totalPages: data.totalPages || 1,
+      page: data.page || 1,
+      limit: data.limit || 10,
+    };
   } catch (error) {
     console.error('Error searching tours:', error);
     throw error;
@@ -229,6 +348,34 @@ export const connectWallet = async (authToken) => {
     return await response.json(); // Return the response from the server
   } catch (error) {
     console.error('Error connecting wallet:', error);
+    throw error;
+  }
+};
+
+export const fetchOrderDetail = async (orderId) => {
+  try {
+    const user = JSON.parse(localStorage.getItem('userNav')) || {};
+    const token =
+      user.accessToken ||
+      user?.token?.accessToken ||
+      user?.token ||
+      user?.accesstoken;
+
+    const response = await fetch(`${BASE_URL}/orders/api/detail/${orderId}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || 'Không thể lấy thông tin chi tiết vé');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching order detail:', error);
     throw error;
   }
 };

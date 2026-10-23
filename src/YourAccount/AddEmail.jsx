@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Modal from "react-modal";
+import { useSelector } from "react-redux";
 
 Modal.setAppElement("#root");
 
@@ -8,7 +9,9 @@ function AddEmail() {
   const [newEmail, setNewEmail] = useState("");
   const [error, setError] = useState("");
   const [emails, setEmails] = useState([]);
-  const user = JSON.parse(localStorage.getItem("userNav"));
+  const reduxUser = useSelector((state) => state.auth?.login?.currentUser);
+  const storedUser = JSON.parse(localStorage.getItem("userNav")) || {};
+  const user = reduxUser || storedUser;
 
   const openModal = () => {
     setModalIsOpen(true);

@@ -1,6 +1,6 @@
 // eslint-disable-next-line no-unused-vars
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 import Body from './main/Body.jsx';
 import ProductBody from './product/Body.jsx';
 import BodyProDetail from './ProductDetail/Bodydetail.jsx';
@@ -17,16 +17,31 @@ import SavedPassengers from './YourAccount/savedPassengers.jsx';
 import Refunds from './YourAccount/Refunds.jsx';
 import Savelist from './header1/Savelist.jsx';
 import LoadingLogin from './LoadingLogin';
-// import ForgotPassword from './header1/Password/ForgotPassword.jsx';
 import ForgotPassword from './header1/Password/ForgotPassword.jsx';
 import ResetPassword from './header1/Password/ResetPassword.jsx';
+import TicketDetailPage from './YourAccount/TicketDetailPage.jsx';
 
+// Tự động cuộn lên đầu trang khi chuyển Route
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+
+  React.useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: 'instant',
+    });
+  }, [pathname]);
+
+  return null;
+};
 
 function App() {
 
   return (
     <DateProvider>
       <Router>
+        <ScrollToTop />
         <Routes>
 
           <Route path="/" element={<Body />} />
@@ -41,6 +56,7 @@ function App() {
 
           <Route path="/settings" element={<Settings />} />
           <Route path="/setplace" element={<SetPlace />} />
+          <Route path="/order-detail/:orderId" element={<TicketDetailPage />} />
           <Route path="/SavedPassengers" element={<SavedPassengers />} />
           <Route path="/Refunds" element={<Refunds />} />
           <Route path="/Transaction" element={<Transaction />} />

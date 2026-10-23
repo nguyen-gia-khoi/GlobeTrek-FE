@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faUser } from "@fortawesome/free-solid-svg-icons";
-import SsoPointerSignIn from "./GoogleSignIn";
 import { useDispatch } from "react-redux"; // Redux Hook
 import { registerUser, signinUser, verifyAccount } from "../redux/apiRequest";
 import { useSelector } from "react-redux";
@@ -15,6 +14,9 @@ export default function Modal() {
   const [showModal, setShowModal] = useState(false);
   const [isRegistered, setIsRegistered] = useState(null);
   const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
   const [showPasswordInput, setShowPasswordInput] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -39,7 +41,7 @@ export default function Modal() {
     const storedUserNav = localStorage.getItem("userNav");
     if (userNav?.email) {
       const parsedUserNav = JSON.parse(storedUserNav);
-      setUser(parsedUserNav);';;'
+      setUser(parsedUserNav);
       setIsLoggedIn(true);
     }
   }, [userNav?.email]);
@@ -57,6 +59,9 @@ export default function Modal() {
   const resetForm = () => {
     setIsRegistered(null);
     setEmail("");
+    setName("");
+    setPhone("");
+    setAddress("");
     setShowPasswordInput(false);
     setPassword("");
     setConfirmPassword("");
@@ -164,13 +169,43 @@ export default function Modal() {
     e.preventDefault();
     if (inputError) return;
 
+    if (!name.trim()) {
+      message.error("Vui lòng nhập họ và tên!");
+      return;
+    }
+    if (!phone.trim()) {
+      message.error("Vui lòng nhập số điện thoại!");
+      return;
+    }
+    const phoneRegex = /^[0-9]{9,11}$/;
+    if (!phoneRegex.test(phone.trim())) {
+      message.error("Số điện thoại không hợp lệ! Vui lòng nhập từ 9 đến 11 chữ số.");
+      return;
+    }
+    if (!address.trim()) {
+      message.error("Vui lòng nhập địa chỉ!");
+      return;
+    }
+    if (!password) {
+      message.error("Vui lòng nhập mật khẩu!");
+      return;
+    }
+    if (password.length < 6) {
+      message.error("Mật khẩu phải có ít nhất 6 ký tự!");
+      return;
+    }
     if (password !== confirmPassword) {
       message.error("Mật khẩu và xác nhận mật khẩu không khớp!");
       return;
     }
+
     const newUser = {
       email: email.trim(),
       password: password,
+      name: name.trim(),
+      phone: phone.trim(),
+      phoneNumber: phone.trim(),
+      address: address.trim(),
     };
     registerUser(newUser, dispatch, setShowVerification);
   };
@@ -260,7 +295,7 @@ export default function Modal() {
             onClick={closeModal}
           />
           <div className="flex items-center justify-center min-h-screen px-4 py-8">
-            <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md z-10 relative transition-transform transform">
+            <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md z-10 relative max-h-[90vh] overflow-y-auto transition-transform transform">
               <button
                 className="absolute top-2 right-2 bg-transparent text-gray-500 hover:text-black"
                 onClick={closeModal}
@@ -280,7 +315,32 @@ export default function Modal() {
                   />
                 </svg>
               </button>
-              <h2 className="text-2xl text-trek-color-1 font-bold mb-3">Đăng nhập / Đăng ký</h2>
+              <h2 className="text-2xl text-trek-color-1 font-bold mb-3">
+                {isRegistered === null
+                  ? "Đăng nhập / Đăng ký"
+                  : isRegistered
+                    ? "Đăng nhập"
+                    : "Đăng ký tài khoản"}
+              </h2>
+
+              {isRegistered !== null && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsRegistered(null);
+                    setShowPasswordInput(false);
+                    setPassword("");
+                    setConfirmPassword("");
+                    setName("");
+                    setPhone("");
+                    setAddress("");
+                  }}
+                  className="text-xs text-trek-color-1 hover:underline mb-3 flex items-center gap-1 font-medium"
+                >
+                  ← Thay đổi email ({email})
+                </button>
+              )}
+
               <form
                 onSubmit={
                   isRegistered === null
@@ -290,50 +350,107 @@ export default function Modal() {
                       : handleRegister
                 }
               >
-                <p className="p-2 text-gray-700">Email của bạn</p>
-                <input
-                  type="text"
-                  placeholder="Ví dụ: abccba@gmail.com"
-                  className={`w-full p-2 mb-4 border border-trek-color-1 rounded-md focus:border-blue-500 ${inputError ? "border-red-500" : ""}`}
-                  value={email}
-                  onChange={handleChange}
-                />
-                {inputError && (
-                  <p className="text-red-500 mb-2">{inputError}</p>
-                )}
+                <div className="mb-3">
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Email của bạn</label>
+                  <input
+                    type="text"
+                    placeholder="Ví dụ: abccba@gmail.com"
+                    className={`w-full p-2.5 text-sm border border-trek-color-1 rounded-md focus:outline-none focus:border-blue-500 ${inputError ? "border-red-500" : ""} ${isRegistered !== null ? "bg-gray-100 text-gray-600" : ""}`}
+                    value={email}
+                    onChange={handleChange}
+                    disabled={isRegistered !== null}
+                  />
+                  {inputError && (
+                    <p className="text-red-500 text-xs mt-1">{inputError}</p>
+                  )}
+                </div>
 
                 {showPasswordInput && (
                   <>
-                    <input
-                      type="password"
-                      placeholder="Mật khẩu"
-                      className="w-full p-2 mb-4 border border-trek-color-1 rounded-md focus:border-blue-500"
-                      value={password}
-                      onChange={handlePasswordChange}
-                    />
-                    
                     {!isRegistered && (
+                      <>
+                        <div className="mb-3">
+                          <label className="block text-xs font-semibold text-gray-700 mb-1">Họ và tên <span className="text-red-500">*</span></label>
+                          <input
+                            type="text"
+                            placeholder="Ví dụ: Nguyễn Văn A"
+                            className="w-full p-2.5 text-sm border border-trek-color-1 rounded-md focus:outline-none focus:border-blue-500"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            required
+                          />
+                        </div>
+
+                        <div className="mb-3">
+                          <label className="block text-xs font-semibold text-gray-700 mb-1">Số điện thoại <span className="text-red-500">*</span></label>
+                          <input
+                            type="tel"
+                            placeholder="Ví dụ: 0912345678"
+                            className="w-full p-2.5 text-sm border border-trek-color-1 rounded-md focus:outline-none focus:border-blue-500"
+                            value={phone}
+                            onChange={(e) => setPhone(e.target.value)}
+                            required
+                          />
+                        </div>
+
+                        <div className="mb-3">
+                          <label className="block text-xs font-semibold text-gray-700 mb-1">Địa chỉ <span className="text-red-500">*</span></label>
+                          <input
+                            type="text"
+                            placeholder="Ví dụ: 123 Đường ABC, Quận 1, TP.HCM"
+                            className="w-full p-2.5 text-sm border border-trek-color-1 rounded-md focus:outline-none focus:border-blue-500"
+                            value={address}
+                            onChange={(e) => setAddress(e.target.value)}
+                            required
+                          />
+                        </div>
+                      </>
+                    )}
+
+                    <div className="mb-3">
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">Mật khẩu <span className="text-red-500">*</span></label>
                       <input
                         type="password"
-                        placeholder="Xác nhận mật khẩu"
-                        className="w-full p-2 mb-4 border border-trek-color-1 rounded-md focus:border-blue-500"
-                        value={confirmPassword}
-                        onChange={handleConfirmPasswordChange}
+                        placeholder="Nhập mật khẩu"
+                        className="w-full p-2.5 text-sm border border-trek-color-1 rounded-md focus:outline-none focus:border-blue-500"
+                        value={password}
+                        onChange={handlePasswordChange}
+                        required
                       />
-                      
+                    </div>
+                    
+                    {!isRegistered && (
+                      <div className="mb-3">
+                        <label className="block text-xs font-semibold text-gray-700 mb-1">Xác nhận mật khẩu <span className="text-red-500">*</span></label>
+                        <input
+                          type="password"
+                          placeholder="Nhập lại mật khẩu"
+                          className="w-full p-2.5 text-sm border border-trek-color-1 rounded-md focus:border-blue-500"
+                          value={confirmPassword}
+                          onChange={handleConfirmPasswordChange}
+                          required
+                        />
+                      </div>
                     )}
-                    <button
-                      className="text-trek-color-1 text-sm"
-                      onClick={openForgotPasswordModal}
-                    >
-                      Quên mật khẩu?
-                    </button>
+
+                    {isRegistered && (
+                      <div className="mb-3 text-right">
+                        <button
+                          type="button"
+                          className="text-trek-color-1 text-sm hover:underline"
+                          onClick={openForgotPasswordModal}
+                        >
+                          Quên mật khẩu?
+                        </button>
+                      </div>
+                    )}
                   </>
                 )}
+
                 <button
-                  disabled={!email || inputError}
+                  disabled={!email || !!inputError}
                   type="submit"
-                  className={`w-full py-2 text-white font-semibold rounded-lg ${email && !inputError ? "bg-trek-color-1 hover:bg-trek-color-2" : "bg-gray-400 cursor-not-allowed"}`}
+                  className={`w-full py-2.5 mt-2 text-white font-semibold rounded-lg transition-colors ${email && !inputError ? "bg-trek-color-1 hover:bg-[#3d8c5e]" : "bg-gray-400 cursor-not-allowed"}`}
                 >
                   {isRegistered === null
                     ? "Tiếp tục"
@@ -343,13 +460,7 @@ export default function Modal() {
                 </button>
               </form>
               
-              <div className="flex items-center justify-between mt-4">
-                <div className="h-px bg-gray-300 flex-grow" />
-                <span className="mx-4 text-gray-500">Hoặc</span>
-                <div className="h-px bg-gray-300 flex-grow" />
-              </div>
-              <SsoPointerSignIn />
-              <div className="text-sm text-gray-600 mt-2 text-center">
+              <div className="text-sm text-gray-600 mt-4 text-center">
                 Bằng cách đăng ký, bạn đồng ý với{" "}
                 <a href="#" className="text-trek-color-1 font-bold">
                   Điều khoản & Điều kiện

@@ -1,9 +1,10 @@
 
 import  { useEffect, useState } from 'react';
-import { Select, Typography, Card, Pagination, message } from 'antd';
+import { Select, Typography, Card, Pagination, Button, message } from 'antd';
 import SidebarMenu from './SidebarMenu';
 import Header from '../header1/Header';
 import Footer from '../footer/Footer';
+import TicketDetailModal from './TicketDetailModal';
 
 const { Title, Text } = Typography;
 
@@ -11,15 +12,26 @@ const Transaction = () => {
   const [groupedOrders, setGroupedOrders] = useState({});
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(5);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
   const [dateFilter, setDateFilter] = useState('');
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const BASE_URL = import.meta.env.VITE_BASE_URL;
+
+  const handleOpenDetail = (orderId) => {
+    setSelectedOrderId(orderId);
+    setIsDetailModalOpen(true);
+  };
 
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const user = JSON.parse(localStorage.getItem('userNav'));
-        const accessToken = user?.accessToken;
+        const user = JSON.parse(localStorage.getItem('userNav')) || {};
+        const accessToken =
+          user?.accessToken ||
+          user?.token?.accessToken ||
+          user?.token ||
+          user?.accesstoken;
 
         if (!accessToken) {
           throw new Error("Access token not found");
@@ -38,7 +50,7 @@ const Transaction = () => {
 
         const data = await response.json();
         setGroupedOrders(data);
-        filterOrders(data);
+        filterOrders(data, dateFilter);
       } catch (error) {
         console.error('Error fetching orders:', error);
         message.error('Không thể tải dữ liệu đơn hàng');
@@ -49,47 +61,63 @@ const Transaction = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const filterOrders = (orders) => {
+  const filterOrders = (orders, currentFilter) => {
     let allOrders = [];
-  
-    // Handle grouped or flat data
-    if (typeof orders === 'object' && !Array.isArray(orders)) {
-      Object.values(orders).forEach(orderList => {
-        if (Array.isArray(orderList)) {
-          allOrders = allOrders.concat(orderList);
-        }
-      });
-    } else if (Array.isArray(orders)) {
-      allOrders = orders;
-    } else {
-      console.error('Unexpected orders format:', orders);
+
+    if (!orders) {
+      setFilteredOrders([]);
       return;
     }
-  
+
+    if (Array.isArray(orders)) {
+      allOrders = orders;
+    } else if (Array.isArray(orders.orders)) {
+      allOrders = orders.orders;
+    } else if (Array.isArray(orders.data)) {
+      allOrders = orders.data;
+    } else if (typeof orders === 'object') {
+      Object.values(orders).forEach((val) => {
+        if (Array.isArray(val)) {
+          allOrders = allOrders.concat(val);
+        } else if (val && typeof val === 'object' && (val._id || val.tour || val.bookingDate)) {
+          allOrders.push(val);
+        }
+      });
+    }
+
     // Apply date filter
     const today = new Date();
+    const filterType = currentFilter !== undefined ? currentFilter : dateFilter;
     const filtered = allOrders.filter(order => {
-      const orderDate = new Date(order.bookingDate);
-      if (dateFilter === '90-days' || dateFilter === '3-months') {
-        return (today - orderDate) / (1000 * 60 * 60 * 24) <= 90;
-      } else if (dateFilter === '6-months') {
-        return (today - orderDate) / (1000 * 60 * 60 * 24) <= 180;
+      if (!filterType) return true; // Tất cả
+      const targetDate = order.createdAt || order.bookingDate;
+      if (!targetDate) return true;
+      const dateVal = Array.isArray(targetDate) ? targetDate[0] : targetDate;
+      const orderDate = new Date(dateVal);
+      if (isNaN(orderDate.getTime())) return true;
+
+      const diffDays = (today - orderDate) / (1000 * 60 * 60 * 24);
+      if (filterType === '90-days' || filterType === '3-months') {
+        return diffDays <= 90;
+      } else if (filterType === '6-months') {
+        return diffDays <= 180;
       }
-      return true; // No filter
+      return true;
     });
-  
-    // Sort by date
-    const sortedOrders = filtered.sort((a, b) =>
-      new Date(b.createdAt || b.bookingDate) - new Date(a.createdAt || a.bookingDate)
-    );
-  
+
+    // Sort newest orders first
+    const sortedOrders = filtered.sort((a, b) => {
+      const dateA = new Date(a.createdAt || a.bookingDate || 0);
+      const dateB = new Date(b.createdAt || b.bookingDate || 0);
+      return dateB - dateA;
+    });
+
     setFilteredOrders(sortedOrders);
   };
-  
 
   const handleFilterChange = (value) => {
     setDateFilter(value);
-    filterOrders(groupedOrders);
+    filterOrders(groupedOrders, value);
   };
 
   const handlePageChange = (page) => {
@@ -106,6 +134,19 @@ const Transaction = () => {
       case 'canceled': return 'red';
       default: return 'grey';
     }
+  };
+
+  const formatBookingDate = (dateVal, createdAt) => {
+    const target = dateVal || createdAt;
+    if (!target) return 'N/A';
+    if (Array.isArray(target)) {
+      return target.map(d => {
+        const parsed = new Date(d);
+        return isNaN(parsed.getTime()) ? String(d) : parsed.toLocaleDateString('vi-VN');
+      }).join(', ');
+    }
+    const d = new Date(target);
+    return isNaN(d.getTime()) ? String(target) : d.toLocaleDateString('vi-VN');
   };
 
   return (
@@ -133,23 +174,29 @@ const Transaction = () => {
             </div>
 
             {displayOrders.length === 0 ? (
-              <Text className="text-center">Không có đơn hàng nào.</Text>
+              <div className="py-8 text-center">
+                <Text className="text-gray-500">Không có đơn hàng nào.</Text>
+              </div>
             ) : (
               <div>
                 {displayOrders.map((order) => (
                   <Card
                     key={order._id}
                     className="mb-4 shadow-md hover:shadow-lg transition duration-300"
-                    style={{ borderRadius: '8px' }}
+                    style={{ borderRadius: '12px', backgroundColor: '#f9fafb' }}
                   >
-                    <Title level={4}>Mã đặt chỗ: {order._id}</Title>
-                    <Text>Ngày đặt: {new Date(order.bookingDate).toLocaleDateString()}</Text>
-                    <Text className="block mt-2">Mô tả Tour: {order.tour?.description}</Text>
+                    <div className="border-b border-gray-200 pb-2 mb-3">
+                      <Title level={4} className="text-gray-800 m-0">Mã đặt chỗ: {order._id}</Title>
+                    </div>
+                    <Text>Ngày đặt: {formatBookingDate(order.bookingDate, order.createdAt)}</Text>
                     <Text className="block mt-2">
-                      Số lượng vé: {order.adultCount + order.childCount || 0}
+                      Mô tả Tour: {order.tour?.description || order.tour?.name || order.tour?.title || order.tourTitle || 'Vé tour du lịch'}
                     </Text>
-                    <Text className="text-lg font-bold block mt-2">
-                      Tổng giá trị: {order.totalValue.toLocaleString()} VND
+                    <Text className="block mt-2">
+                      Số lượng vé: {(order.adultCount || 0) + (order.childCount || 0) || order.ticketCount || 1}
+                    </Text>
+                    <Text className="text-lg font-bold block mt-2 text-green-600">
+                      Tổng giá trị: {(order.totalValue || order.totalPrice || order.total || 0).toLocaleString()} VND
                     </Text>
                     <Text className="block mt-2">
                       Trạng thái:
@@ -163,6 +210,16 @@ const Transaction = () => {
                                 : 'Không xác định'}
                       </span>
                     </Text>
+                    <div className="mt-4 flex items-center gap-2">
+                      <Button
+                        type="primary"
+                        size="middle"
+                        className="bg-[#4CA771] hover:bg-[#00875A]"
+                        onClick={() => handleOpenDetail(order._id)}
+                      >
+                        Xem chi tiết vé
+                      </Button>
+                    </div>
                   </Card>
                 ))}
 
@@ -179,6 +236,11 @@ const Transaction = () => {
           </div>
         </div>
       </div>
+      <TicketDetailModal
+        orderId={selectedOrderId}
+        isOpen={isDetailModalOpen}
+        onClose={() => setIsDetailModalOpen(false)}
+      />
       <Footer />
     </>
   );

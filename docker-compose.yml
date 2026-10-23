@@ -1,0 +1,28 @@
+# Production frontend behind the existing Traefik + Cloudflare Tunnel stack.
+# TLS ends at Cloudflare. Traefik receives HTTP on entrypoint "web", same as the API.
+#
+#   copy .env.production.example .env.production
+#   docker compose --env-file .env.production up -d --build
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_BASE_URL: ${VITE_BASE_URL:?Set VITE_BASE_URL in .env.production}
+        VITE_REDIRECT_URL: ${VITE_REDIRECT_URL:?Set VITE_REDIRECT_URL in .env.production}
+    image: globetrek-fe:latest
+    container_name: globetrek_fe
+    restart: unless-stopped
+    networks:
+      - traefik-net
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik-net
+      - traefik.http.routers.globetrek-fe.rule=Host(`globetrek.nguyengiakhoi.io.vn`)
+      - traefik.http.routers.globetrek-fe.entrypoints=web
+      - traefik.http.services.globetrek-fe.loadbalancer.server.port=80
+
+networks:
+  traefik-net:
+    external: true

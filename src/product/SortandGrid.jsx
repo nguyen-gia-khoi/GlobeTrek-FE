@@ -1,73 +1,90 @@
 import React from 'react';
-import Select from 'react-select';
-import Skeleton from 'react-loading-skeleton';
-import 'react-loading-skeleton/dist/skeleton.css'; // Import CSS for Skeleton
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+  faBorderAll,
+  faList,
+  faSliders,
+} from '@fortawesome/free-solid-svg-icons';
 
-const SortandGrid = ({ onSortChange, view, setView, loading }) => {
-  const options = [
-    { value: 'popular', label: 'Most Popular' },
-    { value: 'priceLowHigh', label: 'Price: Low to High' },
-    { value: 'priceHighLow', label: 'Price: High to Low' },
-  ];
+const sortOptions = [
+  { value: 'popular', label: 'Phổ biến nhất' },
+  { value: 'priceAsc', label: 'Giá: Thấp đến Cao' },
+  { value: 'priceDesc', label: 'Giá: Cao đến Thấp' },
+  { value: 'durationAsc', label: 'Thời lượng: Ngắn đến Dài' },
+  { value: 'newest', label: 'Mới nhất' },
+];
 
-  const customStyles = {
-    option: (provided, state) => ({
-      ...provided,
-      backgroundColor: state.isSelected ? '#4CA771' : state.isFocused ? '#d1fae5' : '#ffffff',
-      color: '#000',
-      '&:hover': {
-        backgroundColor: '#d1fae5',
-      },
-    }),
-    control: (provided) => ({
-      ...provided,
-      borderColor: '#4CA771',
-      boxShadow: 'none',
-      '&:hover': {
-        borderColor: '#4CA771',
-      },
-    }),
-  };
-
+const SortandGrid = ({
+  onSortChange,
+  sortOption,
+  view,
+  setView,
+  totalResults = 0,
+  onOpenMobileFilter,
+}) => {
   return (
-    <div className="flex justify-between items-center p-2 bg-[rgba(174,249,231,0.2)] flex-wrap">
-      {loading ? (
-        <Skeleton width={300} height={30} />
-      ) : (
-        <h1 className="text-md sm:text-lg font-bold flex-shrink-0">
-          Showing <span className="text-red-500">Tours</span> activities
-        </h1>
-      )}
-      <div className="flex items-center space-x-4">
-        <div className="w-full flex items-center md:w-auto px-6">
-          <label className="mr-2 font-bold text-sm text-gray-400">
-            {loading ? <Skeleton width={80} height={20} /> : 'Sort by:'}
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 mb-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+      {/* Kết quả tìm kiếm */}
+      <div className="flex items-center justify-between w-full sm:w-auto">
+        <h2 className="text-sm sm:text-base text-slate-700">
+          Tìm thấy <strong className="text-[#4CA771] font-bold">{totalResults}</strong> chuyến đi
+        </h2>
+
+        {/* Nút mở bộ lọc trên Mobile */}
+        <button
+          onClick={onOpenMobileFilter}
+          className="lg:hidden flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-[#4CA771] border border-emerald-200 rounded-xl text-xs font-bold"
+        >
+          <FontAwesomeIcon icon={faSliders} />
+          <span>Bộ lọc</span>
+        </button>
+      </div>
+
+      {/* Sắp xếp & Chế độ xem */}
+      <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-4">
+        {/* Dropdown Sắp xếp */}
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-semibold text-slate-500 whitespace-nowrap hidden sm:inline">
+            Sắp xếp theo:
           </label>
-          {loading ? (
-            <Skeleton width={150} height={40} />
-          ) : (
-            <Select
-              options={options}
-              styles={customStyles}
-              onChange={(selectedOption) => onSortChange(selectedOption.value)}
-              className="w-full md:w-64 font-bold text-sm text-gray-400"
-            />
-          )}
-        </div>
-        <div className="flex space-x-2">
-          <button
-            className={`p-2 border rounded ${view === 'grid' ? 'bg-[#4CA771] text-white' : 'bg-white'}`}
-            onClick={() => setView('grid')}
-            disabled={loading}
+          <select
+            value={sortOption}
+            onChange={(e) => onSortChange(e.target.value)}
+            className="bg-slate-50 border border-slate-200 text-slate-700 text-xs sm:text-sm font-semibold rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#4CA771] cursor-pointer"
           >
-            {loading ? <Skeleton width={50} height={20} /> : 'Grid'}
+            {sortOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Nút Grid / List View */}
+        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+          <button
+            onClick={() => setView('grid')}
+            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+              view === 'grid'
+                ? 'bg-white text-[#4CA771] shadow-sm font-bold'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+            title="Xem dạng lưới"
+            aria-label="Grid View"
+          >
+            <FontAwesomeIcon icon={faBorderAll} className="text-sm" />
           </button>
           <button
-            className={`p-2 border rounded ${view === 'list' ? 'bg-[#4CA771] text-white' : 'bg-white'}`}
             onClick={() => setView('list')}
-            disabled={loading}
+            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+              view === 'list'
+                ? 'bg-white text-[#4CA771] shadow-sm font-bold'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+            title="Xem dạng danh sách"
+            aria-label="List View"
           >
-            {loading ? <Skeleton width={50} height={20} /> : 'List'}
+            <FontAwesomeIcon icon={faList} className="text-sm" />
           </button>
         </div>
       </div>

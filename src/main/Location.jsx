@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import Skeleton from 'react-loading-skeleton';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import '../fontawesome'; // Ensure this file configures FontAwesome correctly
@@ -59,16 +60,19 @@ function Location() {
           </div>
         </div>
       </div>
-      <div className="bg-[#4CA771] sm:rounded-full rounded-lg w-[80%] ml-4 sm:w-[30%] mt-4 p-2 font-bold justify-center text-white text-sm flex items-center">
+      <Link
+        to="/product-body"
+        className="bg-[#4CA771] hover:bg-[#3d8b5d] sm:rounded-full rounded-lg w-[80%] ml-4 sm:w-auto sm:px-6 mt-4 p-2.5 font-bold justify-center text-white text-sm flex items-center shadow hover:shadow-md transition-all duration-200 cursor-pointer"
+      >
         {loading ? (
-          <Skeleton width={300} height={20} color="#202020" highlightColor="#cccccc" className="mr-2" />
+          <Skeleton width={200} height={20} color="#202020" highlightColor="#cccccc" className="mr-2" />
         ) : (
           <>
             <div className="px-2">Xem các hoạt động ở vị trí của bạn</div>
-            <FontAwesomeIcon icon="fa-solid fa-arrow-right" />
+            <FontAwesomeIcon icon="fa-solid fa-arrow-right" className="text-xs" />
           </>
         )}
-      </div>
+      </Link>
     </div>
   );
 }
