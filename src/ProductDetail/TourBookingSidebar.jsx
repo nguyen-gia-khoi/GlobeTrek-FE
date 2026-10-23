@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faCalendarCheck,
@@ -13,7 +14,8 @@ import {
   faFire,
 } from '@fortawesome/free-solid-svg-icons';
 import { useDate } from '../Context/DateContext';
-import { isSpecialDay } from '../API/utils';
+import { hasTourItinerary, isSpecialDay } from '../API/utils';
+import { getAuthToken } from '../API/apiService';
 
 // Hàm tính giá người lớn & trẻ em cho một ngày cụ thể
 export const getPriceForDate = (date, tourData) => {
@@ -58,6 +60,14 @@ export const getPriceForDate = (date, tourData) => {
 const TourBookingSidebar = ({ tour, selectedDate, onSelectDate }) => {
   const navigate = useNavigate();
   const { setSelectedDate } = useDate();
+  const currentUser = useSelector((state) => state.auth?.login?.currentUser);
+  const isLoggedIn = Boolean(
+    getAuthToken() ||
+    currentUser?.accessToken ||
+    currentUser?.token?.accessToken ||
+    currentUser?.token ||
+    currentUser?.accesstoken
+  );
 
   // Lấy danh sách ngày khởi hành trong tương lai từ availabilities
   const todayStr = new Date().toISOString().split('T')[0];
@@ -85,7 +95,11 @@ const TourBookingSidebar = ({ tour, selectedDate, onSelectDate }) => {
     if (onSelectDate) onSelectDate(d);
   };
 
+  const canBook = hasTourItinerary(tour);
+  const canPress = canBook && isLoggedIn;
+
   const handleBookNow = () => {
+    if (!canPress) return;
     if (selectedDate) {
       localStorage.setItem('selectedDate', selectedDate.toISOString());
       localStorage.setItem('tourPrice', currentPricing.adultPrice);
@@ -217,14 +231,32 @@ const TourBookingSidebar = ({ tour, selectedDate, onSelectDate }) => {
 
       {/* Nút Đặt Tour CTA */}
       <div className="pt-5 space-y-3">
-        <button
-          onClick={handleBookNow}
-          className="w-full py-3.5 bg-[#4CA771] hover:bg-[#3d8b5d] text-white font-bold text-base rounded-xl shadow-lg shadow-emerald-700/20 hover:shadow-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
-        >
-          <FontAwesomeIcon icon={faBolt} />
-          <span>Đặt Tour Ngay</span>
-          <FontAwesomeIcon icon={faArrowRight} className="text-xs" />
-        </button>
+        {!canBook && (
+          <div className="p-3 bg-amber-50 rounded-xl text-xs text-amber-800 border border-amber-200">
+            Tour chưa có lịch trình nên chưa mở đặt chỗ. Quý khách vui lòng liên hệ tư vấn viên.
+          </div>
+        )}
+        <div className="relative group">
+          <button
+            type="button"
+            onClick={handleBookNow}
+            disabled={!canPress}
+            className={`w-full py-3.5 font-bold text-base rounded-xl transition-all flex items-center justify-center gap-2 ${
+              canPress
+                ? 'bg-[#4CA771] hover:bg-[#3d8b5d] text-white shadow-lg shadow-emerald-700/20 hover:shadow-xl cursor-pointer'
+                : 'bg-slate-300 text-slate-500 shadow-none cursor-not-allowed pointer-events-none'
+            }`}
+          >
+            <FontAwesomeIcon icon={faBolt} />
+            <span>Đặt Tour Ngay</span>
+            <FontAwesomeIcon icon={faArrowRight} className="text-xs" />
+          </button>
+          {!isLoggedIn && (
+            <span className="pointer-events-none absolute left-1/2 bottom-[calc(100%+8px)] z-10 -translate-x-1/2 whitespace-nowrap rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+              Vui lòng đăng nhập
+            </span>
+          )}
+        </div>
 
         <a
           href="tel:19001234"

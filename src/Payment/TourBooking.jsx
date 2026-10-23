@@ -23,7 +23,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons';
 import { message } from 'antd';
 import { fetchTourById, quotePromotion, getAuthToken } from '../API/apiService';
-import { isSpecialDay } from '../API/utils';
+import { hasTourItinerary, isSpecialDay } from '../API/utils';
 import { useDate } from '../Context/DateContext';
 import VoucherSection from './VoucherSection';
 
@@ -297,7 +297,19 @@ const TourBooking = () => {
   };
 
   // 9. Xử lý đặt tour và chuyển tiếp
+  const canBook = hasTourItinerary(tour);
+  const canPress = canBook && isLoggedIn;
+
   const handleBooking = () => {
+    if (!isLoggedIn) {
+      setErrorMessage('Vui lòng đăng nhập để đặt tour.');
+      return;
+    }
+    if (!canBook) {
+      setErrorMessage('Tour này chưa có lịch trình nên chưa thể đặt chỗ.');
+      return;
+    }
+
     if (adultCount < 1) {
       setErrorMessage('Quý khách cần chọn ít nhất 1 vé người lớn.');
       return;
@@ -398,6 +410,12 @@ const TourBooking = () => {
           </div>
         </div>
       </div>
+
+      {!canBook && (
+        <div className="mb-6 p-4 bg-amber-50 rounded-2xl text-sm text-amber-800 border border-amber-200">
+          Tour này chưa có lịch trình nên chưa mở đặt chỗ. Quý khách vui lòng quay lại khi lịch trình được cập nhật hoặc liên hệ tư vấn viên.
+        </div>
+      )}
 
       {/* 2. Nội dung chính: 2 Cột */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -639,13 +657,26 @@ const TourBooking = () => {
             </div>
 
             {/* Nút Tiếp tục CTA */}
-            <button
-              onClick={handleBooking}
-              className="w-full py-3.5 bg-[#4CA771] hover:bg-[#3d8b5d] text-white font-bold text-base rounded-xl shadow-lg shadow-emerald-700/20 hover:shadow-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <span>Tiếp tục: Nhập thông tin khách</span>
-              <FontAwesomeIcon icon={faChevronRight} className="text-xs" />
-            </button>
+            <div className="relative group">
+              <button
+                type="button"
+                onClick={handleBooking}
+                disabled={!canPress}
+                className={`w-full py-3.5 font-bold text-base rounded-xl transition-all flex items-center justify-center gap-2 ${
+                  canPress
+                    ? 'bg-[#4CA771] hover:bg-[#3d8b5d] text-white shadow-lg shadow-emerald-700/20 hover:shadow-xl cursor-pointer'
+                    : 'bg-slate-300 text-slate-500 shadow-none cursor-not-allowed pointer-events-none'
+                }`}
+              >
+                <span>Tiếp tục: Nhập thông tin khách</span>
+                <FontAwesomeIcon icon={faChevronRight} className="text-xs" />
+              </button>
+              {!isLoggedIn && (
+                <span className="pointer-events-none absolute left-1/2 bottom-[calc(100%+8px)] z-10 -translate-x-1/2 whitespace-nowrap rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+                  Vui lòng đăng nhập
+                </span>
+              )}
+            </div>
 
             {/* Hotline hỗ trợ */}
             <div className="mt-4 text-center">

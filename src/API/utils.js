@@ -1,4 +1,18 @@
 // utils.js
+
+// Tour chỉ mở đặt chỗ khi có ít nhất một ngày lịch trình có nội dung.
+export const hasTourItinerary = (tour) => {
+  const schedules = tour?.schedules;
+  if (!Array.isArray(schedules) || schedules.length === 0) return false;
+
+  return schedules.some((item) => {
+    if (!item) return false;
+    if (typeof item === 'string') return item.trim().length > 0;
+    const activity = item.activity || item.title || item.description || '';
+    return String(activity).trim().length > 0;
+  });
+};
+
 export const isSpecialDay = (date) => {
     const dayOfWeek = date.getDay();
     const day = date.getDate();

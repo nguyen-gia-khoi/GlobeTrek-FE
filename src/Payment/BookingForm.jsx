@@ -26,7 +26,8 @@ import Map from './Map.jsx';
 import ConfirmBookingModal from './ConfirmBookingModal';
 import ProcessingModal from './ProcessingModal';
 
-import { fetchTourById } from '../API/apiService';
+import { fetchTourById, getAuthToken } from '../API/apiService';
+import { hasTourItinerary } from '../API/utils';
 import { useDate } from '../Context/DateContext';
 
 const BookingForm = () => {
@@ -111,7 +112,20 @@ const BookingForm = () => {
   }, [bookingData]);
 
   // 3. Xử lý khi nhấn "Tiếp tục thanh toán"
+  const canBook = hasTourItinerary(tour);
+  const isLoggedIn = Boolean(getAuthToken());
+  const canPress = canBook && isLoggedIn;
+
   const handleContinueClick = () => {
+    if (!isLoggedIn) {
+      message.warning('Vui lòng đăng nhập để đặt tour.');
+      return;
+    }
+    if (!canBook) {
+      message.warning('Tour này chưa có lịch trình nên chưa thể đặt chỗ.');
+      return;
+    }
+
     const customerInfo = JSON.parse(localStorage.getItem('customerInfo'));
     const passengerInfo = JSON.parse(localStorage.getItem('passengerInfo'));
 
@@ -226,6 +240,12 @@ const BookingForm = () => {
               </div>
             </div>
           </div>
+
+          {!canBook && (
+            <div className="mb-6 p-4 bg-amber-50 rounded-2xl text-sm text-amber-800 border border-amber-200">
+              Tour này chưa có lịch trình nên chưa mở đặt chỗ. Quý khách vui lòng quay lại khi lịch trình được cập nhật hoặc liên hệ tư vấn viên.
+            </div>
+          )}
 
           {/* 2. Layout 2 Cột Hiện Đại */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -377,15 +397,27 @@ const BookingForm = () => {
                 </div>
 
                 {/* Nút Tiếp tục thanh toán CTA */}
+                <div className="relative group">
                 <button
                   type="button"
                   onClick={handleContinueClick}
-                  className="w-full py-3.5 bg-[#4CA771] hover:bg-[#3d8b5d] text-white font-bold text-base rounded-xl shadow-lg shadow-emerald-700/20 hover:shadow-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  disabled={!canPress}
+                  className={`w-full py-3.5 font-bold text-base rounded-xl transition-all flex items-center justify-center gap-2 ${
+                    canPress
+                      ? 'bg-[#4CA771] hover:bg-[#3d8b5d] text-white shadow-lg shadow-emerald-700/20 hover:shadow-xl cursor-pointer'
+                      : 'bg-slate-300 text-slate-500 shadow-none cursor-not-allowed pointer-events-none'
+                  }`}
                 >
                   <FontAwesomeIcon icon={faCreditCard} />
                   <span>Xác nhận & Sang thanh toán</span>
                   <FontAwesomeIcon icon={faChevronRight} className="text-xs" />
                 </button>
+                {!isLoggedIn && (
+                  <span className="pointer-events-none absolute left-1/2 bottom-[calc(100%+8px)] z-10 -translate-x-1/2 whitespace-nowrap rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+                    Vui lòng đăng nhập
+                  </span>
+                )}
+                </div>
 
                 {/* Trust badge */}
                 <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-center gap-2 text-xs text-slate-500">

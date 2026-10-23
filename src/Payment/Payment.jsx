@@ -23,6 +23,7 @@ import 'react-loading-skeleton/dist/skeleton.css';
 import Header from '../header1/Header';
 import Footer from '../footer/Footer';
 import { fetchTourById, quotePromotion, getAuthToken } from '../API/apiService';
+import { hasTourItinerary } from '../API/utils';
 import VoucherSection from './VoucherSection';
 
 const VITE_REDIRECT_URL = import.meta.env.VITE_REDIRECT_URL;
@@ -362,6 +363,15 @@ function Payment() {
 
   // 8. Xử lý tạo Order & Thanh toán (Hỗ trợ cả khách đã đăng nhập và khách vãng lai)
   const handlePaymentSubmit = async () => {
+    if (!token) {
+      message.warning('Vui lòng đăng nhập để đặt tour.');
+      return;
+    }
+    if (!hasTourItinerary(tour)) {
+      message.error('Tour này chưa có lịch trình nên chưa thể đặt chỗ.');
+      return;
+    }
+
     if (!bookingData || (!bookingData.totalPrice && !quote?.totalValue)) {
       message.error('Dữ liệu đặt chỗ không hợp lệ. Vui lòng quay lại bước trước.');
       return;
@@ -543,6 +553,12 @@ function Payment() {
               </div>
             </div>
           </div>
+
+          {!tourLoading && !hasTourItinerary(tour) && (
+            <div className="mb-6 p-4 bg-amber-50 rounded-2xl text-sm text-amber-800 border border-amber-200">
+              Tour này chưa có lịch trình nên chưa mở đặt chỗ. Quý khách không thể thanh toán cho đến khi lịch trình được cập nhật.
+            </div>
+          )}
 
           {/* 2. Thanh Countdown Timer đếm ngược giữ chỗ */}
           <div className="bg-gradient-to-r from-emerald-50 via-emerald-100/50 to-teal-50 border border-emerald-200 rounded-2xl p-4 sm:p-5 mb-8 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -791,11 +807,16 @@ function Payment() {
                 </div>
 
                 {/* Nút Thanh toán PayPal CTA */}
+                <div className="relative group">
                 <button
                   type="button"
                   onClick={handlePaymentSubmit}
-                  disabled={loading}
-                  className="w-full py-4 bg-[#4CA771] hover:bg-[#3d8b5d] disabled:bg-slate-300 text-white font-bold text-base rounded-xl shadow-lg shadow-emerald-700/20 hover:shadow-xl transition-all flex items-center justify-center gap-2.5 cursor-pointer disabled:cursor-not-allowed"
+                  disabled={loading || !token || !hasTourItinerary(tour)}
+                  className={`w-full py-4 font-bold text-base rounded-xl transition-all flex items-center justify-center gap-2.5 ${
+                    loading || !token || !hasTourItinerary(tour)
+                      ? 'bg-slate-300 text-slate-500 shadow-none cursor-not-allowed pointer-events-none'
+                      : 'bg-[#4CA771] hover:bg-[#3d8b5d] text-white shadow-lg shadow-emerald-700/20 hover:shadow-xl cursor-pointer'
+                  }`}
                 >
                   {loading ? (
                     <>
@@ -810,6 +831,12 @@ function Payment() {
                     </>
                   )}
                 </button>
+                {!token && (
+                  <span className="pointer-events-none absolute left-1/2 bottom-[calc(100%+8px)] z-10 -translate-x-1/2 whitespace-nowrap rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
+                    Vui lòng đăng nhập
+                  </span>
+                )}
+                </div>
 
                 {/* Trust badge */}
                 <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-center gap-2 text-xs text-slate-500">
